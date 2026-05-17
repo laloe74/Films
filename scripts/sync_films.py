@@ -17,7 +17,9 @@ import math
 import os
 import re
 import sys
+import time
 import urllib.request
+import urllib.error
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
@@ -40,15 +42,26 @@ def fetch_marks(token: str, page_size: int = PAGE_SIZE, max_pages: int | None = 
     """
     all_marks = []
     page = 1
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "User-Agent": "films-sync/1.0",
+    }
     while True:
         url = f"{NEOB_API}/me/shelf/complete?category=movie&page={page}&page_size={page_size}"
-        req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
-        with urllib.request.urlopen(req) as resp:
-            data = json.loads(resp.read())
+        req = urllib.request.Request(url, headers=headers)
+        try:
+            with urllib.request.urlopen(req) as resp:
+                data = json.loads(resp.read())
+        except urllib.error.HTTPError as e:
+            body = e.read().decode(errors="replace")
+            print(f"HTTP {e.code} on page {page}: {body}", file=sys.stderr)
+            raise
         all_marks.extend(data["data"])
         if page >= data["pages"] or (max_pages and page >= max_pages):
             break
         page += 1
+        if max_pages is None:
+            time.sleep(0.5)
     return all_marks
 
 
@@ -130,7 +143,7 @@ def sync_auto(token: str):
         print(f"  + [{entry['date']}] {entry['name']} ({stars_str(entry['score'])})")
 
     all_entries = existing + new_entries
-    all_entries.sort(key=lambda e: (e.get("date", ""), -e.get("index", 0)), reverse=True)
+    all_entries.sort(key=lambda e: (e.get("date", ""), e.get("index", 0)), reverse=True)
     toml_text = format_toml(all_entries)
     TOML_PATH.write_text(toml_text, encoding="utf-8")
     print(f"Wrote {len(all_entries)} movies to {TOML_PATH}")
@@ -178,7 +191,7 @@ def sync_full(token: str):
         return
 
     all_entries = local_manual + kept + new_entries
-    all_entries.sort(key=lambda e: (e.get("date", ""), -e.get("index", 0)), reverse=True)
+    all_entries.sort(key=lambda e: (e.get("date", ""), e.get("index", 0)), reverse=True)
     toml_text = format_toml(all_entries)
     TOML_PATH.write_text(toml_text, encoding="utf-8")
     print(f"Wrote {len(all_entries)} movies to {TOML_PATH}")

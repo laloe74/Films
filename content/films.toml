@@ -1,4 +1,11 @@
 [[movies]]
+index = 1194
+name = "哈姆奈特"
+date = "2026-05-23"
+score = 3
+url = "https://neodb.social/movie/4JhwtCkcbhDyWzuThYHVLC"
+
+[[movies]]
 index = 1193
 name = "寒战1994"
 date = "2026-05-01"

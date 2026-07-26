@@ -1,4 +1,11 @@
 [[movies]]
+index = 1201
+name = "Obsession"
+date = "2026-07-26"
+score = 4
+url = "https://neodb.social/movie/1h6eSFaFOKzV3ElOnk0BnA"
+
+[[movies]]
 index = 1200
 name = "盲目的雄心"
 date = "2026-07-13"

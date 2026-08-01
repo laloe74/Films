@@ -1,4 +1,11 @@
 [[movies]]
+index = 1203
+name = "The Odyssey"
+date = "2026-08-01"
+score = 4
+url = "https://neodb.social/movie/5Sd0Dw4oPFeRC5uF64tqQ4"
+
+[[movies]]
 index = 1202
 name = "揭秘日"
 date = "2026-07-31"

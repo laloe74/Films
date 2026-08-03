@@ -41,25 +41,28 @@ def _is_chinese(s: str) -> bool:
 def _pick_chinese_title(item: dict) -> str:
     """Pick the best Chinese title from NeoDB item fields.
 
-    Priority: display_title (Chinese) > alt_title (Chinese) > display_title > alt_title > title
+    Priority: localized_title (zh) > title (Chinese) > display_title (Chinese) > title
+    NeoDB API has deprecated display_title and removed alt_title.
+    Chinese names are now in localized_title as [{lang: "zh", text: "..."}].
     """
-    display = item.get("display_title", "")
-    alt = item.get("alt_title", "")
     title = item.get("title", "")
+    display = item.get("display_title", "")
 
-    # Prefer Chinese in display_title
+    # Check localized_title for Chinese entry
+    localized = item.get("localized_title", [])
+    for loc in localized:
+        lang = loc.get("lang", "")
+        text = loc.get("text", "")
+        if lang.startswith("zh") and text:
+            return text
+
+    # Prefer Chinese in title
+    if title and _is_chinese(title):
+        return title
+    # Then Chinese in display_title (deprecated but still present)
     if display and _is_chinese(display):
         return display
-    # Then Chinese in alt_title
-    if alt and _is_chinese(alt):
-        return alt
-    # Fall back to display_title if it exists
-    if display:
-        return display
-    # Then alt_title
-    if alt:
-        return alt
-    # Finally title
+    # Fall back to title
     return title
 
 

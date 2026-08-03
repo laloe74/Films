@@ -39,22 +39,22 @@
       {% endif %}
       <article class="movie-item{% if movie.score == 5 %} five-star{% endif %}">
         <div class="movie-main">
-          <a href="{{ movie.url }}" target="_blank" rel="noopener" class="movie-title">
+            <div class="movie-meta">
+              <span class="movie-score">
+                {% if movie.score > 0 %}
+                {%- if movie.score >= 1 %}★{% else %}☆{% endif -%}
+                {%- if movie.score >= 2 %}★{% else %}☆{% endif -%}
+                {%- if movie.score >= 3 %}★{% else %}☆{% endif -%}
+                {%- if movie.score >= 4 %}★{% else %}☆{% endif -%}
+                {%- if movie.score >= 5 %}★{% else %}☆{% endif -%}
+                {% else %}-{% endif %}
+              </span>
+            </div>
+            <a href="{{ movie.url }}" target="_blank" rel="noopener" class="movie-title">
             {{ movie.name }}
-          </a>
+            </a>
           <span class="dotline"></span>
-          <div class="movie-meta">
-            <span class="movie-score">
-              {% if movie.score > 0 %}
-              {%- if movie.score >= 1 %}★{% else %}☆{% endif -%}
-              {%- if movie.score >= 2 %}★{% else %}☆{% endif -%}
-              {%- if movie.score >= 3 %}★{% else %}☆{% endif -%}
-              {%- if movie.score >= 4 %}★{% else %}☆{% endif -%}
-              {%- if movie.score >= 5 %}★{% else %}☆{% endif -%}
-              {% else %}-{% endif %}
-            </span>
-            <span class="movie-date">{{ movie.date | split(pat="-") | slice(start=1, end=3) | join(sep=".") }}</span>
-          </div>
+          <span class="movie-date">{{ movie.date | split(pat="-") | slice(start=1, end=3) | join(sep=".") }}</span>
         </div>
       </article>
     {% endfor %}

@@ -1,13 +1,10 @@
 """
 Sync watched movies from NeoDB to films.toml.
 
-Two modes:
-  auto  (default): fetch latest 20 marks, append new only, no deletion.
-  full:            fetch ALL marks, add new + remove deleted.
+Fetch latest marks from NeoDB shelf and append new entries only (no deletion).
 
 Usage:
-    NEOB_API_TOKEN=xxx python scripts/sync_films.py          # auto
-    NEOB_API_TOKEN=xxx SYNC_MODE=full python scripts/sync_films.py
+    NEOB_API_TOKEN=xxx python scripts/sync_films.py
 
 Requires: Python 3.11+ (stdlib tomllib)
 """
@@ -34,6 +31,36 @@ TOML_PATH = Path("content/films.toml")
 INDEX_PATH = Path("content/_index.md")
 PAGE_SIZE = 50
 CST = timezone(timedelta(hours=8))
+
+
+def _is_chinese(s: str) -> bool:
+    """Check if a string contains Chinese characters (CJK Unified Ideographs)."""
+    return bool(re.search(r'[一-鿿㐀-䶿]', s))
+
+
+def _pick_chinese_title(item: dict) -> str:
+    """Pick the best Chinese title from NeoDB item fields.
+
+    Priority: display_title (Chinese) > alt_title (Chinese) > display_title > alt_title > title
+    """
+    display = item.get("display_title", "")
+    alt = item.get("alt_title", "")
+    title = item.get("title", "")
+
+    # Prefer Chinese in display_title
+    if display and _is_chinese(display):
+        return display
+    # Then Chinese in alt_title
+    if alt and _is_chinese(alt):
+        return alt
+    # Fall back to display_title if it exists
+    if display:
+        return display
+    # Then alt_title
+    if alt:
+        return alt
+    # Finally title
+    return title
 
 
 def norm_url(url: str) -> str:
@@ -98,7 +125,7 @@ def mark_to_entry(mark: dict, index: int) -> dict:
     item = mark.get("item", {})
     return {
         "index": index,
-        "name": item.get("display_title") or item.get("title", ""),
+        "name": _pick_chinese_title(item),
         "date": mark.get("created_time", "")[:10],
         "score": neo_score_to_stars(mark.get("rating_grade")),
         "url": full_url(item.get("url", "")),
@@ -165,65 +192,13 @@ def sync_auto(token: str):
     update_index_timestamp(INDEX_PATH)
 
 
-def sync_full(token: str):
-    """Full mode: fetch ALL marks, add new + remove deleted."""
-    print("=== Full sync (compare all) ===")
-    marks = fetch_marks(token)
-    print(f"  NeoDB: {len(marks)} marks")
-
-    neo_urls = {norm_url(m["item"]["url"]) for m in marks if m.get("item", {}).get("url")}
-    existing = load_existing(TOML_PATH)
-
-    local_neo = [e for e in existing if norm_url(e.get("url", "")).startswith("/movie/")]
-    local_manual = [e for e in existing if not norm_url(e.get("url", "")).startswith("/movie/")]
-    local_neo_urls = {norm_url(e["url"]) for e in local_neo}
-
-    keep_urls = local_neo_urls & neo_urls
-    removed_urls = local_neo_urls - neo_urls
-    new_urls = neo_urls - local_neo_urls
-
-    kept = [e for e in local_neo if norm_url(e["url"]) in keep_urls]
-    removed = [e for e in local_neo if norm_url(e["url"]) in removed_urls]
-    new_marks = [m for m in marks if norm_url(m["item"]["url"]) in new_urls]
-
-    print(f"  Keep: {len(kept)}  Remove: {len(removed)}  Add: {len(new_marks)}  Manual: {len(local_manual)}")
-
-    if removed:
-        print("Removing:")
-        for e in removed:
-            print(f"  - [{e['date']}] {e['name']}")
-
-    max_idx = max((e.get("index", 0) for e in existing), default=0)
-    new_entries = []
-    for i, m in enumerate(new_marks):
-        entry = mark_to_entry(m, max_idx + 1 + i)
-        new_entries.append(entry)
-        print(f"  + [{entry['date']}] {entry['name']} ({stars_str(entry['score'])})")
-
-    if not removed and not new_entries:
-        print("Already up to date.")
-        update_index_timestamp(INDEX_PATH)
-        return
-
-    all_entries = local_manual + kept + new_entries
-    all_entries.sort(key=lambda e: (e.get("date", ""), e.get("index", 0)), reverse=True)
-    toml_text = format_toml(all_entries)
-    TOML_PATH.write_text(toml_text, encoding="utf-8")
-    print(f"Wrote {len(all_entries)} movies to {TOML_PATH}")
-    update_index_timestamp(INDEX_PATH)
-
-
 def main():
     token = os.environ.get("NEOB_API_TOKEN")
     if not token:
         print("Error: NEOB_API_TOKEN environment variable not set", file=sys.stderr)
         sys.exit(1)
 
-    mode = os.environ.get("SYNC_MODE", "auto")
-    if mode == "full":
-        sync_full(token)
-    else:
-        sync_auto(token)
+    sync_auto(token)
 
 
 if __name__ == "__main__":

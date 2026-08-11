@@ -15,7 +15,7 @@
 <body>
   <header>
     <h1>{{ config.title }}</h1>
-    <p class="updated">{{ section.extra.updated_at }}</p>
+    <p class="updated">Updated: {{ section.extra.updated_at }}</p>
   </header>
   <main>
     {% set data = load_data(path="content/films.toml") %}

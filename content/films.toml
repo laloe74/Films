@@ -1,4 +1,11 @@
 [[movies]]
+index = 1205
+name = "嚇房"
+date = "2026-08-11"
+score = 3
+url = "https://neodb.social/movie/4ODuqH3TUvGBzWwjIzqYtA"
+
+[[movies]]
 index = 1204
 name = "蜘蛛侠：崭新之日"
 date = "2026-08-03"

@@ -14,6 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      issues: write
     steps:
       - uses: actions/checkout@v4
 
@@ -22,11 +23,41 @@ jobs:
           python-version: '3.12'
 
       - name: Sync films from NeoDB
+        id: sync
+        continue-on-error: true
         env:
           NEOB_API_TOKEN: ${{ secrets.NEOB_API_TOKEN }}
         run: python scripts/sync_films.py
 
+      - name: Create issue on failure
+        if: steps.sync.outcome == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = '⚠️ NeoDB API Token 过期，请更新';
+            const body = 'Sync workflow 失败，大概率是 NEOB_API_TOKEN 过期了。\n\n请去 [GitHub Secrets](https://github.com/laloe74/films/settings/secrets/actions) 更新 `NEOB_API_TOKEN`，然后手动触发 workflow 验证。';
+            // Check if an open issue with this title already exists
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'neodb-token',
+            });
+            if (issues.data.length === 0) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+                labels: ['neodb-token'],
+              });
+              console.log('Created reminder issue');
+            } else {
+              console.log('Open issue already exists, skipping');
+            }
+
       - name: Commit and push if changes
+        if: steps.sync.outcome == 'success'
         run: |
           git config user.name "film-bot"
           git config user.email "bot@films.tongmingzhi.com"
